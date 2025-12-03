@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2D Collision Simulation</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: linear-gradient(to bottom right, #eff6ff, #f3e8ff);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    canvas {
+      border: 2px solid #ccc;
+      border-radius: 10px;
+      background: white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      width: 400px;
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      font-size: 14px;
+      color: #444;
+    }
+
+    input {
+      padding: 6px;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 15px;
+      border-radius: 10px;
+      cursor: pointer;
+      border: none;
+      font-weight: bold;
+    }
+
+    #startBtn {
+      background: #2563eb;
+      color: white;
+    }
+
+    #resetBtn {
+      background: white;
+      border: 2px solid #ccc;
+    }
+
+    .notes {
+      max-width: 600px;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      border: 2px solid #eee;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+  </style>
+</head>
+<body>
+
+  <h1>2D Collision Interactive Lesson</h1>
+
+  <canvas id="simCanvas" width="500" height="300"></canvas>
+
+  <div class="controls">
+    <label>Mass 1 (kg):
+      <input type="number" id="m1" value="2" step="0.1">
+    </label>
+    <label>Mass 2 (kg):
+      <input type="number" id="m2" value="1" step="0.1">
+    </label>
+
+    <label>Velocity 1 X:
+      <input type="number" id="v1x" value="2" step="0.1">
+    </label>
+    <label>Velocity 2 X:
+      <input type="number" id="v2x" value="-1" step="0.1">
+    </label>
+
+    <label>Velocity 1 Y:
+      <input type="number" id="v1y" value="1" step="0.1">
+    </label>
+    <label>Velocity 2 Y:
+      <input type="number" id="v2y" value="-0.5" step="0.1">
+    </label>
+  </div>
+
+  <div style="display:flex; gap:15px;">
+    <button id="startBtn">Start Simulation</button>
+    <button id="resetBtn">Reset</button>
+  </div>
+
+  <div class="notes">
+    <h2>Learning Notes</h2>
+    <p>
+      In an elastic collision, both momentum and kinetic energy are conserved.
+      Try changing masses and velocities to see how momentum transfers along
+      the line of impact. Experiment with perpendicular velocities for
+      glancing collisions!
+    </p>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("simCanvas");
+    const ctx = canvas.getContext("2d");
+
+    let running = false;
+    let animationId = null;
+
+    const params = {
+      m1: 2,
+      m2: 1,
+      v1x: 2,
+      v1y: 1,
+      v2x: -1,
+      v2y: -0.5,
+    };
+
+    let ball1, ball2;
+
+    function resetBalls() {
+      ball1 = { x: 120, y: 150, r: 25, m: params.m1, vx: params.v1x, vy: params.v1y };
+      ball2 = { x: 380, y: 150, r: 25, m: params.m2, vx: params.v2x, vy: params.v2y };
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = "#3b82f6";
+      ctx.beginPath();
+      ctx.arc(ball1.x, ball1.y, ball1.r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#ef4444";
+      ctx.beginPath();
+      ctx.arc(ball2.x, ball2.y, ball2.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function update() {
+      if (!running) {
+        draw();
+        return;
+      }
+
+      ball1.x += ball1.vx;
+      ball1.y += ball1.vy;
+      ball2.x += ball2.vx;
+      ball2.y += ball2.vy;
+
+      // Collision
+      const dx = ball2.x - ball1.x;
+      const dy = ball2.y - ball1.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance <= ball1.r + ball2.r && distance > 0) {
+        const nx = dx / distance;
+        const ny = dy / distance;
+
+        const dvx = ball1.vx - ball2.vx;
+        const dvy = ball1.vy - ball2.vy;
+
+        const dvn = dvx * nx + dvy * ny;
+
+        if (dvn > 0) {
+          const impulse = (2 * dvn) / (ball1.m + ball2.m);
+
+          ball1.vx -= impulse * ball2.m * nx;
+          ball1.vy -= impulse * ball2.m * ny;
+          ball2.vx += impulse * ball1.m * nx;
+          ball2.vy += impulse * ball1.m * ny;
+        }
+      }
+
+      // Wall bounce
+      function bounce(ball) {
+        if (ball.x - ball.r <= 0 || ball.x + ball.r >= canvas.width) {
+          ball.vx *= -1;
+          ball.x = Math.max(ball.r, Math.min(canvas.width - ball.r, ball.x));
+        }
+        if (ball.y - ball.r <= 0 || ball.y + ball.r >= canvas.height) {
+          ball.vy *= -1;
+          ball.y = Math.max(ball.r, Math.min(canvas.height - ball.r, ball.y));
+        }
+      }
+
+      bounce(ball1);
+      bounce(ball2);
+
+      draw();
+      animationId = requestAnimationFrame(update);
+    }
+
+    // UI updates
+    function hookInput(id, key) {
+      document.getElementById(id).addEventListener("input", e => {
+        params[key] = parseFloat(e.target.value) || 0;
+        resetBalls();
+        draw();
+      });
+    }
+
+    hookInput("m1", "m1");
+    hookInput("m2", "m2");
+    hookInput("v1x", "v1x");
+    hookInput("v1y", "v1y");
+    hookInput("v2x", "v2x");
+    hookInput("v2y", "v2y");
+
+    // Buttons
+    document.getElementById("startBtn").addEventListener("click", () => {
+      running = !running;
+      document.getElementById("startBtn").textContent = running ? "Stop Simulation" : "Start Simulation";
+      if (running) update();
+      else cancelAnimationFrame(animationId);
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      running = false;
+      document.getElementById("startBtn").textContent = "Start Simulation";
+      cancelAnimationFrame(animationId);
+      resetBalls();
+      draw();
+    });
+
+    // Initialize
+    resetBalls();
+    draw();
+  </script>
+
+</body>
+</html>
