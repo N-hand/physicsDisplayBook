@@ -117,132 +117,151 @@
   </div>
 
   <script>
-    const canvas = document.getElementById("simCanvas");
-    const ctx = canvas.getContext("2d");
+  const canvas = document.getElementById("simCanvas");
+  const ctx = canvas.getContext("2d");
 
-    let running = false;
-    let animationId = null;
+  let running = false;
+  let animationId = null;
 
-    const params = {
-      m1: 2,
-      m2: 1,
-      v1x: 2,
-      v1y: 1,
-      v2x: -1,
-      v2y: -0.5,
+  const params = {
+    m1: 2,
+    m2: 1,
+    v1x: 2,
+    v1y: 1,
+    v2x: -1,
+    v2y: -0.5,
+  };
+
+  // Mass → radius scaling
+  function radiusFromMass(m) {
+    return 12 * Math.cbrt(m);   // visually nice & physics-reasonable
+  }
+
+  let ball1, ball2;
+
+  function resetBalls() {
+    ball1 = {
+      x: 120,
+      y: 150,
+      r: radiusFromMass(params.m1),
+      m: params.m1,
+      vx: params.v1x,
+      vy: params.v1y
     };
 
-    let ball1, ball2;
+    ball2 = {
+      x: 380,
+      y: 150,
+      r: radiusFromMass(params.m2),
+      m: params.m2,
+      vx: params.v2x,
+      vy: params.v2y
+    };
+  }
 
-    function resetBalls() {
-      ball1 = { x: 120, y: 150, r: 25, m: params.m1, vx: params.v1x, vy: params.v1y };
-      ball2 = { x: 380, y: 150, r: 25, m: params.m2, vx: params.v2x, vy: params.v2y };
-    }
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#3b82f6";
+    ctx.beginPath();
+    ctx.arc(ball1.x, ball1.y, ball1.r, 0, Math.PI * 2);
+    ctx.fill();
 
-      ctx.fillStyle = "#3b82f6";
-      ctx.beginPath();
-      ctx.arc(ball1.x, ball1.y, ball1.r, 0, Math.PI * 2);
-      ctx.fill();
+    ctx.fillStyle = "#ef4444";
+    ctx.beginPath();
+    ctx.arc(ball2.x, ball2.y, ball2.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
-      ctx.fillStyle = "#ef4444";
-      ctx.beginPath();
-      ctx.arc(ball2.x, ball2.y, ball2.r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    function update() {
-      if (!running) {
-        draw();
-        return;
-      }
-
-      ball1.x += ball1.vx;
-      ball1.y += ball1.vy;
-      ball2.x += ball2.vx;
-      ball2.y += ball2.vy;
-
-      // Collision
-      const dx = ball2.x - ball1.x;
-      const dy = ball2.y - ball1.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-
-      if (distance <= ball1.r + ball2.r && distance > 0) {
-        const nx = dx / distance;
-        const ny = dy / distance;
-
-        const dvx = ball1.vx - ball2.vx;
-        const dvy = ball1.vy - ball2.vy;
-
-        const dvn = dvx * nx + dvy * ny;
-
-        if (dvn > 0) {
-          const impulse = (2 * dvn) / (ball1.m + ball2.m);
-
-          ball1.vx -= impulse * ball2.m * nx;
-          ball1.vy -= impulse * ball2.m * ny;
-          ball2.vx += impulse * ball1.m * nx;
-          ball2.vy += impulse * ball1.m * ny;
-        }
-      }
-
-      // Wall bounce
-      function bounce(ball) {
-        if (ball.x - ball.r <= 0 || ball.x + ball.r >= canvas.width) {
-          ball.vx *= -1;
-          ball.x = Math.max(ball.r, Math.min(canvas.width - ball.r, ball.x));
-        }
-        if (ball.y - ball.r <= 0 || ball.y + ball.r >= canvas.height) {
-          ball.vy *= -1;
-          ball.y = Math.max(ball.r, Math.min(canvas.height - ball.r, ball.y));
-        }
-      }
-
-      bounce(ball1);
-      bounce(ball2);
-
+  function update() {
+    if (!running) {
       draw();
-      animationId = requestAnimationFrame(update);
+      return;
     }
 
-    // UI updates
-    function hookInput(id, key) {
-      document.getElementById(id).addEventListener("input", e => {
-        params[key] = parseFloat(e.target.value) || 0;
-        resetBalls();
-        draw();
-      });
+    ball1.x += ball1.vx;
+    ball1.y += ball1.vy;
+    ball2.x += ball2.vx;
+    ball2.y += ball2.vy;
+
+    // Collision detection
+    const dx = ball2.x - ball1.x;
+    const dy = ball2.y - ball1.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance <= ball1.r + ball2.r && distance > 0) {
+      const nx = dx / distance;
+      const ny = dy / distance;
+
+      const dvx = ball1.vx - ball2.vx;
+      const dvy = ball1.vy - ball2.vy;
+
+      const dvn = dvx * nx + dvy * ny;
+
+      if (dvn > 0) {
+        const impulse = (2 * dvn) / (ball1.m + ball2.m);
+
+        ball1.vx -= impulse * ball2.m * nx;
+        ball1.vy -= impulse * ball2.m * ny;
+        ball2.vx += impulse * ball1.m * nx;
+        ball2.vy += impulse * ball1.m * ny;
+      }
     }
 
-    hookInput("m1", "m1");
-    hookInput("m2", "m2");
-    hookInput("v1x", "v1x");
-    hookInput("v1y", "v1y");
-    hookInput("v2x", "v2x");
-    hookInput("v2y", "v2y");
+    function bounce(ball) {
+      if (ball.x - ball.r <= 0 || ball.x + ball.r >= canvas.width) {
+        ball.vx *= -1;
+        ball.x = Math.max(ball.r, Math.min(canvas.width - ball.r, ball.x));
+      }
+      if (ball.y - ball.r <= 0 || ball.y + ball.r >= canvas.height) {
+        ball.vy *= -1;
+        ball.y = Math.max(ball.r, Math.min(canvas.height - ball.r, ball.y));
+      }
+    }
 
-    // Buttons
-    document.getElementById("startBtn").addEventListener("click", () => {
-      running = !running;
-      document.getElementById("startBtn").textContent = running ? "Stop Simulation" : "Start Simulation";
-      if (running) update();
-      else cancelAnimationFrame(animationId);
-    });
+    bounce(ball1);
+    bounce(ball2);
 
-    document.getElementById("resetBtn").addEventListener("click", () => {
-      running = false;
-      document.getElementById("startBtn").textContent = "Start Simulation";
-      cancelAnimationFrame(animationId);
+    draw();
+    animationId = requestAnimationFrame(update);
+  }
+
+  // Hook up inputs
+  function hookInput(id, key) {
+    document.getElementById(id).addEventListener("input", e => {
+      params[key] = parseFloat(e.target.value) || 0;
       resetBalls();
       draw();
     });
+  }
 
-    // Initialize
+  hookInput("m1", "m1");
+  hookInput("m2", "m2");
+  hookInput("v1x", "v1x");
+  hookInput("v1y", "v1y");
+  hookInput("v2x", "v2x");
+  hookInput("v2y", "v2y");
+
+  document.getElementById("startBtn").addEventListener("click", () => {
+    running = !running;
+    document.getElementById("startBtn").textContent =
+      running ? "Stop Simulation" : "Start Simulation";
+    if (running) update();
+    else cancelAnimationFrame(animationId);
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    running = false;
+    cancelAnimationFrame(animationId);
+    document.getElementById("startBtn").textContent = "Start Simulation";
     resetBalls();
     draw();
-  </script>
+  });
+
+  resetBalls();
+  draw();
+</script>
+
 
 </body>
 </html>
